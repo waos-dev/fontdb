@@ -63,6 +63,9 @@ then you can use the unsafe [`Database::make_shared_face_data`] function.
 
 extern crate alloc;
 
+#[cfg(all(target_os = "wasi", feature = "fs"))]
+mod waos;
+
 #[cfg(not(feature = "std"))]
 use alloc::{
     string::{String, ToString},
@@ -455,6 +458,12 @@ impl Database {
         {
             let mut seen = Default::default();
             self.load_fonts_dir_impl("/ui/fonts".as_ref(), &mut seen);
+        }
+
+        // WaOS.
+        #[cfg(target_os = "wasi")]
+        {
+            waos::load_system_fonts(self);
         }
 
         // Linux.
@@ -880,10 +889,13 @@ pub enum Source {
 impl core::fmt::Debug for Source {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
+            #[cfg(not(target_os = "wasi"))]
             Self::Binary(arg0) => f
                 .debug_tuple("SharedBinary")
                 .field(&arg0.as_ref().as_ref())
                 .finish(),
+            #[cfg(target_os = "wasi")]
+            Self::Binary(_) => f.write_str("Binary(..)"),
             #[cfg(feature = "fs")]
             Self::File(arg0) => f.debug_tuple("File").field(arg0).finish(),
             #[cfg(all(feature = "fs", feature = "memmap"))]
